@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  docflow:
+    image: nginx:alpine
+    container_name: dcontare-docflow
+    ports:
+      - "8080:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
