@@ -362,7 +362,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);h
 <script>
 const SUPA_URL = 'https://epyxuvgynuahalgmuhfz.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVweXh1dmd5bnVhaGFsZ211aGZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjI1NTQsImV4cCI6MjA5NTg5ODU1NH0.wVbmDg0myS1-s8i-GtOIU59r0yAQEPZ6xS4MzAj5hII';
-const OPENAI_KEY = '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';
+// OpenAI key moved to n8n proxy
 const HEADERS = {'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=representation'};
 
 const DOC_TYPES = {
@@ -827,15 +827,17 @@ ${text}` }];
       ]}];
     }
 
-    const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Extrai texto para enviar ao n8n
+    const textContent = messages[0].content;
+    const textOnly = typeof textContent === 'string' ? textContent : textContent.find(x=>x.type==='text')?.text || '';
+
+    const chatRes = await fetch('https://n8n.gyon.cloud/webhook/docflow-ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OPENAI_KEY },
-      body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 400, messages })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: textOnly, filename: item.file.name })
     });
-    if (!chatRes.ok) throw new Error('OpenAI error ' + chatRes.status);
-    const chatData = await chatRes.json();
-    let raw = chatData.choices[0].message.content.trim().replace(/```json|```/g, '').trim();
-    const ai = JSON.parse(raw);
+    if (!chatRes.ok) throw new Error('n8n error ' + chatRes.status);
+    const ai = await chatRes.json();
 
     // Match client — normaliza ambos os lados para só números
     const docNum = normalizeDoc(ai.cnpj || ai.cpf);
