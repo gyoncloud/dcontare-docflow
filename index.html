@@ -453,7 +453,7 @@ function renderSidebar() {
         </div>
         <div class="client-item-actions">
           <button class="ci-btn" onclick="event.stopPropagation();openEditClient('${c.id}')" title="Editar"><i class="ti ti-pencil"></i></button>
-          <button class="ci-btn danger" onclick="event.stopPropagation();deleteClient('${c.id}','${c.name.replace(/'/g,\"\\'\"')}')" title="Apagar"><i class="ti ti-trash"></i></button>
+          <button class="ci-btn danger" onclick="event.stopPropagation();deleteClient('${c.id}')" title="Apagar"><i class="ti ti-trash"></i></button>
         </div>
       </div>`).join('');
   }
@@ -627,7 +627,7 @@ function openEditClient(id) {
   openModal('client');
 }
 
-async function deleteClient(id, name) {
+async function deleteClient(id) {
   if (!confirm(`Apagar o cliente "${name}"? Todos os documentos associados também serão removidos.`)) return;
   showLoading('Apagando cliente...');
   try {
