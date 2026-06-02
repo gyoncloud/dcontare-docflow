@@ -753,27 +753,31 @@ async function fileToBase64(file) {
 async function extractPdfText(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const bytes = new Uint8Array(e.target.result);
-        let str = '';
-        for (let i = 0; i < bytes.length; i++) {
-          const c = bytes[i];
-          if (c >= 32 && c < 127) str += String.fromCharCode(c);
-          else if (c === 10 || c === 13) str += ' ';
+        const typedArray = new Uint8Array(e.target.result);
+        if (!window.pdfjsLib) {
+          await new Promise((res, rej) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            s.onload = res; s.onerror = rej;
+            document.head.appendChild(s);
+          });
+          window.pdfjsLib = window['pdfjs-dist/build/pdf'];
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
-        const words = [];
-        let word = '';
-        for (const ch of str) {
-          if (/[A-Za-z0-9\/.,;:()\-]/.test(ch) || ch === ' ') {
-            word += ch;
-          } else {
-            if (word.trim().length > 3) words.push(word.trim());
-            word = '';
-          }
+        const pdfDoc = await window.pdfjsLib.getDocument({ data: typedArray }).promise;
+        let text = '';
+        for (let i = 1; i <= Math.min(pdfDoc.numPages, 3); i++) {
+          const page = await pdfDoc.getPage(i);
+          const tc = await page.getTextContent();
+          text += tc.items.map(function(s){ return s.str; }).join(' ') + ' ';
         }
-        resolve(words.join(' ').slice(0, 4000));
-      } catch(err) { resolve(''); }
+        resolve(text.slice(0, 4000));
+      } catch(err) {
+        console.error('PDF extract error:', err);
+        resolve('');
+      }
     };
     reader.readAsArrayBuffer(file);
   });
