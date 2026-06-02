@@ -755,17 +755,14 @@ async function extractPdfText(file) {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const typedArray = new Uint8Array(e.target.result);
-        if (!window.pdfjsLib) {
-          await new Promise((res, rej) => {
-            const s = document.createElement('script');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-            s.onload = res; s.onerror = rej;
-            document.head.appendChild(s);
-          });
-          window.pdfjsLib = window['pdfjs-dist/build/pdf'];
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        // Aguarda pdf.js estar pronto
+        let attempts = 0;
+        while (!window.pdfjsLib && attempts < 20) {
+          await new Promise(r => setTimeout(r, 200));
+          attempts++;
         }
+        if (!window.pdfjsLib) throw new Error('pdf.js não carregou');
+        const typedArray = new Uint8Array(e.target.result);
         const pdfDoc = await window.pdfjsLib.getDocument({ data: typedArray }).promise;
         let text = '';
         for (let i = 1; i <= Math.min(pdfDoc.numPages, 3); i++) {
@@ -1013,6 +1010,18 @@ function showToast(msg,error){
 // ============ INIT ============
 setupDrop();
 loadClients();
+
+// Pré-carrega pdf.js para evitar timeout no primeiro uso
+(function preloadPdfJs() {
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  s.onload = function() {
+    window.pdfjsLib = window['pdfjs-dist/build/pdf'];
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    console.log('pdf.js pronto');
+  };
+  document.head.appendChild(s);
+})();
 </script>
 </body>
 </html>
