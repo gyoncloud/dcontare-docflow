@@ -811,31 +811,17 @@ Regras:
 - Para NF: não há due_date
 - amount deve ser o valor total em número (ex: 246.40)`;
 
-    let messages;
-
-    if (isPdf) {
-      const text = await extractPdfText(item.file);
-      if (!text || text.trim().length < 20) throw new Error('PDF sem texto extraível');
-      messages = [{ role: 'user', content: `${prompt}
-
-Texto extraído do documento:
-${text}` }];
-    } else {
-      const base64 = await fileToBase64(item.file);
-      messages = [{ role: 'user', content: [
-        { type: 'text', text: prompt },
-        { type: 'image_url', image_url: { url: `data:${mime};base64,${base64}`, detail: 'high' } }
-      ]}];
-    }
-
-    // Extrai texto para enviar ao n8n
-    const textContent = messages[0].content;
-    const textOnly = typeof textContent === 'string' ? textContent : textContent.find(x=>x.type==='text')?.text || '';
+    // Envia PDF como base64 — o n8n extrai o texto com pdf-parse
+    const base64Data = await fileToBase64(item.file);
 
     const chatRes = await fetch('https://n8n.gyon.cloud/webhook/docflow-ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: textOnly, filename: item.file.name })
+      body: JSON.stringify({
+        filename: item.file.name,
+        mimetype: mime,
+        base64: base64Data
+      })
     });
     if (!chatRes.ok) throw new Error('n8n error ' + chatRes.status);
     const ai = await chatRes.json();
