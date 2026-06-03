@@ -826,40 +826,15 @@ Regras:
     if (!chatRes.ok) throw new Error('n8n error ' + chatRes.status);
     const ai = await chatRes.json();
 
-    // Match client — normaliza ambos os lados para só números
-    const docNum = normalizeDoc(ai.cnpj || ai.cpf);
-    let matched = null;
-
-    if (docNum && docNum.length >= 8) {
-      matched = clients.find(c => normalizeDoc(c.document) === docNum);
-    }
-
-    // Fallback: match parcial (últimos 8 dígitos) para cobrir variações de máscara
-    if (!matched && docNum && docNum.length >= 8) {
-      const suffix = docNum.slice(-8);
-      matched = clients.find(c => normalizeDoc(c.document).endsWith(suffix));
-    }
-
-    // Fallback: match por nome
-    if (!matched && ai.client_name) {
-      const aiName = ai.client_name.toLowerCase().trim();
-      matched = clients.find(c => {
-        const cn = c.name.toLowerCase().trim();
-        // Verifica se primeira palavra do nome bate
-        const aiFirst = aiName.split(' ')[0];
-        const cnFirst = cn.split(' ')[0];
-        return cn === aiName || aiName.includes(cnFirst) || cn.includes(aiFirst);
-      });
-    }
-
+    // O n8n já fez o cruzamento com a base de clientes e retorna client_id/client_name
     item.aiResult = ai;
-    item.status = matched ? 'ready' : 'unidentified';
-    item.clientId = matched?.id || null;
-    item.clientName = matched?.name || null;
+    item.clientId = ai.client_id || null;
+    item.clientName = ai.client_name || null;
+    item.status = ai.client_id ? 'ready' : 'unidentified';
 
   } catch(e) {
     console.error('AI error:', e);
-    item.aiResult = {type:'outros',type_label:'Outros',cnpj:null,cpf:null,due_date:null,amount:null,reference_month:null,client_name:null};
+    item.aiResult = {type:'outros',type_label:'Outros',due_date:null,amount:null,reference_month:null,client_id:null,client_name:null};
     item.status = 'unidentified';
     item.clientId = null;
     item.clientName = null;
